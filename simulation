@@ -1,0 +1,162 @@
+import osmnx as ox
+import networkx as nx
+from geopy.distance import geodesic
+import numpy as np
+import itertools
+import random
+import matplotlib.pyplot as plt
+
+p = 0.05
+q = 0.2
+
+
+
+
+ox.config(use_cache=True, log_console=True)
+
+
+universities = [
+    ["Cambridge, Massachusetts", "Harvard University, Massachusetts Institute of Technology (MIT)"],
+    ["Stanford, California", "Stanford University"],
+    ["Chicago, Illinois", "University of Chicago"],
+    ["New Haven, Connecticut", "Yale University"],
+    ["New York, New York", "Columbia University, New York University (NYU)"],
+    ["Pasadena, California", "California Institute of Technology (Caltech)"],
+    ["Princeton, New Jersey", "Princeton University"],
+    ["Philadelphia, Pennsylvania", "University of Pennsylvania"],
+    ["Baltimore, Maryland", "Johns Hopkins University"],
+    ["Durham, North Carolina", "Duke University"],
+    ["Ann Arbor, Michigan", "University of Michigan"],
+    ["Berkeley, California", "University of California, Berkeley"],
+    ["Ithaca, New York", "Cornell University"],
+    ["St. Louis, Missouri", "Washington University in St. Louis"],
+    ["Nashville, Tennessee", "Vanderbilt University"],
+    ["South Bend, Indiana", "University of Notre Dame"],
+    ["Evanston, Illinois", "Northwestern University"],
+    ["Madison, Wisconsin", "University of Wisconsin-Madison"],
+    ["Los Angeles, California", "University of California, Los Angeles (UCLA), University of Southern California (USC)"],
+    ["Atlanta, Georgia", "Emory University, Georgia Institute of Technology (Georgia Tech)"],
+    ["Pittsburgh, Pennsylvania", "Carnegie Mellon University, University of Pittsburgh"],
+    ["Austin, Texas", "University of Texas at Austin"],
+    ["Charlottesville, Virginia", "University of Virginia"],
+    ["Seattle, Washington", "University of Washington"],
+    ["Houston, Texas", "Rice University"],
+    ["Columbus, Ohio", "Ohio State University"],
+    ["Bloomington, Indiana", "Indiana University"],
+    ["Raleigh, North Carolina", "North Carolina State University"],
+    ["Gainesville, Florida", "University of Florida"],
+    ["Minneapolis, Minnesota", "University of Minnesota"],
+    ["Boulder, Colorado", "University of Colorado Boulder"],
+    ["Miami, Florida", "University of Miami"],
+    ["Santa Barbara, California", "University of California, Santa Barbara"],
+    ["Rochester, New York", "University of Rochester"],
+    ["Chapel Hill, North Carolina", "University of North Carolina at Chapel Hill"],
+    ["Davis, California", "University of California, Davis"],
+    ["Providence, Rhode Island", "Brown University"],
+    ["Waltham, Massachusetts", "Brandeis University"],
+    ["Fort Worth, Texas", "Texas Christian University"],
+    ["Tucson, Arizona", "University of Arizona"],
+    ["Lafayette, Indiana", "Purdue University"],
+    ["Lexington, Kentucky", "University of Kentucky"],
+    ["College Park, Maryland", "University of Maryland, College Park"],
+    ["Worcester, Massachusetts", "Worcester Polytechnic Institute"],
+    ["San Diego, California", "University of California, San Diego (UCSD)"],
+    ["Tempe, Arizona", "Arizona State University"],
+    ["Iowa City, Iowa", "University of Iowa"],
+    ["Salt Lake City, Utah", "University of Utah"]]
+
+
+
+def get_distance_between_cities(city1, city2):
+    coords_1 = ox.geocode(city1 + ", USA")
+    coords_2 = ox.geocode(city2 + ", USA")
+    distance = geodesic(coords_1, coords_2).miles
+    return distance
+
+
+def create_closeness_dict(distance):
+    d = {}
+    for u1 in universities:
+        city1 = u1[0]
+        for u2 in universities:
+            city2 = u2[0]
+            if get_distance_between_cities(city1, city2) <= distance:
+                d[(city1,city2)] = 1
+            else:
+                d[(city1,city2)] = 0
+    return d
+
+
+closeness =  create_closeness_dict(200)   
+
+def sets_close(set1, set2):
+    for city1 in set1:
+        for city2 in set2:
+            if closeness[city1,city2] == 1:
+                return 1
+    return 0
+
+def bernoulli(q):
+    return np.random.binomial(n=1, p= q, size= 1)
+
+def acceptance(l,p):
+    offers = set()
+    for city in l:
+        if bernoulli(p) == 1:
+            offers.add(city)
+    return offers
+
+def simulation(l,s,p,q):
+    offers1 = acceptance(l,p)
+    offers2 = acceptance(s,q)
+    return sets_close(offers1,offers2)
+
+def test(l,s,p,q):
+    score = 0
+    for i in range(500):
+        score += simulation(l,s,p,q)
+    res = score/500
+    return res
+
+
+
+
+cities = [t[0] for t in universities]
+
+
+
+def random_n_test(p,q,n,applications):
+    score = 0
+    for i in range(n):
+        random_subset = random.sample(cities, applications)
+        score += simulation(cities,random_subset,p,q)
+    return score/n
+        
+
+
+
+
+
+
+data = {}
+for i in range(25):
+    data[i] = random_n_test(p,q,5000,i) + (1 - q)**i
+
+# Extract keys and values from the dictionary
+x_values = list(data.keys())
+y_values = list(data.values())
+
+# Create the plot
+plt.figure(figsize=(10, 5))
+plt.plot(x_values, y_values, marker='o', linestyle='-', color='b')
+
+# Add titles and labels
+plt.title('Successful two-person admissions')
+plt.xlabel('Number of applications')
+plt.ylabel('Probability')
+
+# Show grid
+plt.grid(True)
+
+# Display the plot
+plt.show()
